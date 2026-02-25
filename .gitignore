@@ -1,0 +1,13 @@
+#python cache
+__pycache__/
+*.pyc
+
+#jupyter
+.ipynb_checkpoints/
+
+#virtual environments
+.venv/
+.env/
+
+#big/raw data (dont commit)
+data/raw/
