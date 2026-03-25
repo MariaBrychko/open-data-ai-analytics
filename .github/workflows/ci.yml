@@ -57,35 +57,73 @@ jobs:
               - '.github/workflows/**'
               - 'requirements.txt'
 
-  run-modules:
+  prepare-matrix:
     needs: changes
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    outputs:
+      matrix: ${{ steps.make.outputs.matrix }}
+      has_work: ${{ steps.make.outputs.has_work }}
+    steps:
+      - name: Build matrix
+        id: make
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTED_MODULE: ${{ github.event.inputs.module }}
+          DATA_LOAD: ${{ needs.changes.outputs.data_load }}
+          DATA_QUALITY_ANALYSIS: ${{ needs.changes.outputs.data_quality_analysis }}
+          DATA_RESEARCH: ${{ needs.changes.outputs.data_research }}
+          VISUALIZATION: ${{ needs.changes.outputs.visualization }}
+          COMMON: ${{ needs.changes.outputs.common }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          modules = [
+              "data_load",
+              "data_quality_analysis",
+              "data_research",
+              "visualization",
+          ]
+
+          event_name = os.getenv("EVENT_NAME", "")
+          selected = os.getenv("SELECTED_MODULE", "")
+          chosen = []
+
+          if event_name == "workflow_dispatch":
+              if selected in ("", "all"):
+                  chosen = modules
+              else:
+                  chosen = [selected]
+          else:
+              if os.getenv("COMMON") == "true":
+                  chosen = modules
+              else:
+                  mapping = {
+                      "data_load": os.getenv("DATA_LOAD"),
+                      "data_quality_analysis": os.getenv("DATA_QUALITY_ANALYSIS"),
+                      "data_research": os.getenv("DATA_RESEARCH"),
+                      "visualization": os.getenv("VISUALIZATION"),
+                  }
+                  chosen = [m for m in modules if mapping.get(m) == "true"]
+
+          matrix = {"include": [{"module": m} for m in chosen]}
+          has_work = "true" if chosen else "false"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"matrix={json.dumps(matrix)}\n")
+              f.write(f"has_work={has_work}\n")
+          PY
+
+  run-modules:
+    needs: prepare-matrix
+    if: ${{ needs.prepare-matrix.outputs.has_work == 'true' }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        module: [data_load, data_quality_analysis, data_research, visualization]
-    if: >-
-      ${{
-        (
-          github.event_name == 'workflow_dispatch' &&
-          (
-            github.event.inputs.module == 'all' ||
-            github.event.inputs.module == matrix.module
-          )
-        ) ||
-        (
-          github.event_name != 'workflow_dispatch' &&
-          (
-            needs.changes.outputs.common == 'true' ||
-            (matrix.module == 'data_load' && needs.changes.outputs.data_load == 'true') ||
-            (matrix.module == 'data_quality_analysis' && needs.changes.outputs.data_quality_analysis == 'true') ||
-            (matrix.module == 'data_research' && needs.changes.outputs.data_research == 'true') ||
-            (matrix.module == 'visualization' && needs.changes.outputs.visualization == 'true')
-          )
-        )
-      }}
+      matrix: ${{ fromJSON(needs.prepare-matrix.outputs.matrix) }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -152,5 +190,3 @@ jobs:
           name: artifacts-${{ matrix.module }}
           path: artifacts/${{ matrix.module }}
           if-no-files-found: warn
-
-          
