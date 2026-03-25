@@ -119,6 +119,7 @@ def main():
         print(f"Saved: {model_md}")
 
     print("DONE")
+    print("DONE")
 
 
 if __name__ == "__main__":
