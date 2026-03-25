@@ -36,13 +36,13 @@ jobs:
       common: ${{ steps.filter.outputs.common }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Detect changed files
         id: filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@v3
         with:
           filters: |
             data_load:
@@ -57,14 +57,15 @@ jobs:
               - '.github/workflows/**'
               - 'requirements.txt'
 
-  prepare-matrix:
+  prepare:
     needs: changes
     runs-on: ubuntu-latest
     outputs:
+      run_data_load: ${{ steps.make.outputs.run_data_load }}
       matrix: ${{ steps.make.outputs.matrix }}
-      has_work: ${{ steps.make.outputs.has_work }}
+      has_modules: ${{ steps.make.outputs.has_modules }}
     steps:
-      - name: Build matrix
+      - name: Build execution plan
         id: make
         shell: bash
         env:
@@ -80,8 +81,7 @@ jobs:
           import json
           import os
 
-          modules = [
-              "data_load",
+          analysis_modules = [
               "data_quality_analysis",
               "data_research",
               "visualization",
@@ -89,44 +89,104 @@ jobs:
 
           event_name = os.getenv("EVENT_NAME", "")
           selected = os.getenv("SELECTED_MODULE", "")
+
+          changed = {
+              "data_load": os.getenv("DATA_LOAD") == "true",
+              "data_quality_analysis": os.getenv("DATA_QUALITY_ANALYSIS") == "true",
+              "data_research": os.getenv("DATA_RESEARCH") == "true",
+              "visualization": os.getenv("VISUALIZATION") == "true",
+          }
+          common = os.getenv("COMMON") == "true"
+
+          run_data_load = False
           chosen = []
 
           if event_name == "workflow_dispatch":
               if selected in ("", "all"):
-                  chosen = modules
+                  run_data_load = True
+                  chosen = analysis_modules
+              elif selected == "data_load":
+                  run_data_load = True
+                  chosen = []
               else:
+                  run_data_load = True
                   chosen = [selected]
           else:
-              if os.getenv("COMMON") == "true":
-                  chosen = modules
+              if common:
+                  run_data_load = True
+                  chosen = analysis_modules
+              elif any(changed.values()):
+                  run_data_load = True
+                  chosen = [m for m in analysis_modules if changed[m]]
               else:
-                  mapping = {
-                      "data_load": os.getenv("DATA_LOAD"),
-                      "data_quality_analysis": os.getenv("DATA_QUALITY_ANALYSIS"),
-                      "data_research": os.getenv("DATA_RESEARCH"),
-                      "visualization": os.getenv("VISUALIZATION"),
-                  }
-                  chosen = [m for m in modules if mapping.get(m) == "true"]
+                  run_data_load = False
+                  chosen = []
 
           matrix = {"include": [{"module": m} for m in chosen]}
-          has_work = "true" if chosen else "false"
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"run_data_load={'true' if run_data_load else 'false'}\n")
+              f.write(f"has_modules={'true' if chosen else 'false'}\n")
               f.write(f"matrix={json.dumps(matrix)}\n")
-              f.write(f"has_work={has_work}\n")
           PY
 
-  run-modules:
-    needs: prepare-matrix
-    if: ${{ needs.prepare-matrix.outputs.has_work == 'true' }}
+  data-load:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.run_data_load == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Prepare workspace
+        run: |
+          mkdir -p data/raw
+          mkdir -p artifacts/data_load
+          rm -f data/raw/dataset_*
+
+      - name: Run data_load module
+        shell: bash
+        run: |
+          set -euo pipefail
+          python src/data_load/download_data.py 2>&1 | tee artifacts/data_load/run.log
+          cp -v data/raw/* artifacts/data_load/ 2>/dev/null || true
+
+      - name: Upload data_load artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-data_load
+          path: artifacts/data_load
+          if-no-files-found: warn
+
+      - name: Upload raw dataset for next jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-data
+          path: data/raw/*
+          if-no-files-found: error
+
+  run-analysis-modules:
+    needs: [prepare, data-load]
+    if: ${{ needs.prepare.outputs.has_modules == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.prepare-matrix.outputs.matrix) }}
-
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -146,27 +206,21 @@ jobs:
           mkdir -p reports
           mkdir -p reports/figures
           mkdir -p artifacts/${{ matrix.module }}
-          rm -f data/raw/dataset_*
           rm -f reports/*.csv
           rm -f reports/*.md
           rm -f reports/figures/*.png
 
-      - name: Download input data
-        if: ${{ matrix.module != 'data_load' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python src/data_load/download_data.py 2>&1 | tee artifacts/${{ matrix.module }}/prepare_data.log
+      - name: Download raw dataset artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: raw-data
+          path: data/raw
 
       - name: Run selected module
         shell: bash
         run: |
           set -euo pipefail
           case "${{ matrix.module }}" in
-            data_load)
-              python src/data_load/download_data.py 2>&1 | tee artifacts/${{ matrix.module }}/run.log
-              cp -v data/raw/* artifacts/${{ matrix.module }}/ 2>/dev/null || true
-              ;;
             data_quality_analysis)
               python src/data_quality_analysis/check_quality.py 2>&1 | tee artifacts/${{ matrix.module }}/run.log
               cp -v reports/missing_values.csv artifacts/${{ matrix.module }}/ 2>/dev/null || true
@@ -184,7 +238,7 @@ jobs:
               ;;
           esac
 
-      - name: Upload artifacts
+      - name: Upload module artifact
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.module }}
