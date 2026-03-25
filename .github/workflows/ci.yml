@@ -1,0 +1,156 @@
+name: CI (modules)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Which module to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - data_load
+          - data_quality_analysis
+          - data_research
+          - visualization
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      data_load: ${{ steps.filter.outputs.data_load }}
+      data_quality_analysis: ${{ steps.filter.outputs.data_quality_analysis }}
+      data_research: ${{ steps.filter.outputs.data_research }}
+      visualization: ${{ steps.filter.outputs.visualization }}
+      common: ${{ steps.filter.outputs.common }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            data_load:
+              - 'src/data_load/**'
+            data_quality_analysis:
+              - 'src/data_quality_analysis/**'
+            data_research:
+              - 'src/data_research/**'
+            visualization:
+              - 'src/visualization/**'
+            common:
+              - '.github/workflows/**'
+              - 'requirements.txt'
+
+  run-modules:
+    needs: changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [data_load, data_quality_analysis, data_research, visualization]
+    if: >-
+      ${{
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (
+            github.event.inputs.module == 'all' ||
+            github.event.inputs.module == matrix.module
+          )
+        ) ||
+        (
+          github.event_name != 'workflow_dispatch' &&
+          (
+            needs.changes.outputs.common == 'true' ||
+            (matrix.module == 'data_load' && needs.changes.outputs.data_load == 'true') ||
+            (matrix.module == 'data_quality_analysis' && needs.changes.outputs.data_quality_analysis == 'true') ||
+            (matrix.module == 'data_research' && needs.changes.outputs.data_research == 'true') ||
+            (matrix.module == 'visualization' && needs.changes.outputs.visualization == 'true')
+          )
+        )
+      }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Prepare workspace
+        run: |
+          mkdir -p data/raw
+          mkdir -p reports
+          mkdir -p reports/figures
+          mkdir -p artifacts/${{ matrix.module }}
+          rm -f data/raw/dataset_*
+          rm -f reports/*.csv
+          rm -f reports/*.md
+          rm -f reports/figures/*.png
+
+      - name: Download input data
+        if: ${{ matrix.module != 'data_load' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python src/data_load/download_data.py 2>&1 | tee artifacts/${{ matrix.module }}/prepare_data.log
+
+      - name: Run selected module
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.module }}" in
+            data_load)
+              python src/data_load/download_data.py 2>&1 | tee artifacts/${{ matrix.module }}/run.log
+              cp -v data/raw/* artifacts/${{ matrix.module }}/ 2>/dev/null || true
+              ;;
+            data_quality_analysis)
+              python src/data_quality_analysis/check_quality.py 2>&1 | tee artifacts/${{ matrix.module }}/run.log
+              cp -v reports/missing_values.csv artifacts/${{ matrix.module }}/ 2>/dev/null || true
+              cp -v reports/data_quality_report.md artifacts/${{ matrix.module }}/ 2>/dev/null || true
+              ;;
+            data_research)
+              python src/data_research/research.py 2>&1 | tee artifacts/${{ matrix.module }}/run.log
+              cp -v reports/eda_summary.csv artifacts/${{ matrix.module }}/ 2>/dev/null || true
+              cp -v reports/correlation.csv artifacts/${{ matrix.module }}/ 2>/dev/null || true
+              cp -v reports/model_report.md artifacts/${{ matrix.module }}/ 2>/dev/null || true
+              ;;
+            visualization)
+              python src/visualization/visualize.py 2>&1 | tee artifacts/${{ matrix.module }}/run.log
+              cp -v reports/figures/*.png artifacts/${{ matrix.module }}/ 2>/dev/null || true
+              ;;
+          esac
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.module }}
+          path: artifacts/${{ matrix.module }}
+          if-no-files-found: warn
+
+          
