@@ -1,0 +1,60 @@
+name: CI (self-hosted)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-visualization-local:
+    runs-on: [self-hosted, local]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        shell: powershell
+        run: |
+          Write-Host "Runner name: $env:RUNNER_NAME"
+          Write-Host "Runner OS: $env:RUNNER_OS"
+          python --version
+          pip --version
+
+      - name: Install dependencies
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Prepare workspace
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path data\raw | Out-Null
+          New-Item -ItemType Directory -Force -Path reports | Out-Null
+          New-Item -ItemType Directory -Force -Path reports\figures | Out-Null
+          New-Item -ItemType Directory -Force -Path artifacts\visualization-selfhosted | Out-Null
+          Get-ChildItem data\raw\dataset_* -ErrorAction SilentlyContinue | Remove-Item -Force
+          Get-ChildItem reports\figures\*.png -ErrorAction SilentlyContinue | Remove-Item -Force
+
+      - name: Download input data
+        shell: powershell
+        run: |
+          python src/data_load/download_data.py 2>&1 | Tee-Object -FilePath artifacts\visualization-selfhosted\prepare_data.log
+
+      - name: Run visualization module
+        shell: powershell
+        run: |
+          python src/visualization/visualize.py 2>&1 | Tee-Object -FilePath artifacts\visualization-selfhosted\run.log
+
+      - name: Collect generated figures
+        shell: powershell
+        run: |
+          if (Test-Path "reports\figures\*.png") {
+            Copy-Item "reports\figures\*.png" "artifacts\visualization-selfhosted\" -Force
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-visualization-selfhosted
+          path: artifacts/visualization-selfhosted
+          if-no-files-found: warn
