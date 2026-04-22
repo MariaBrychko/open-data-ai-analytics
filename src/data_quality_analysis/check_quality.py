@@ -34,6 +34,22 @@ def basic_quality_checks(df: pd.DataFrame) -> dict:
 
     return result
 
+def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    df.columns = (
+        df.columns.astype(str)
+        .str.replace("\n", " ", regex=False)
+        .str.replace("\r", " ", regex=False)
+        .str.strip()
+    )
+
+    if "region" in df.columns:
+        df = df[
+            ~df["region"].astype(str).str.strip().str.lower().isin(["регіон", "period"])
+        ].copy()
+
+    df = df.dropna(how="all").copy()
+    return df
+
 def main():
     os.makedirs(REPORTS_DIR, exist_ok=True)
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -42,6 +58,7 @@ def main():
     print(f"Using file: {latest}")
 
     df = load_data(latest)
+    df = clean_dataset(df)
     summary = basic_quality_checks(df)
 
     missing_df = df.isna().sum().reset_index()
