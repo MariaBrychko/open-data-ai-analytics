@@ -1,40 +1,58 @@
 import os
-import sys
-import urllib.request
-from datetime import datetime
+import glob
+import sqlite3
+import pandas as pd
 
-DATA_URL = "https://data.gov.ua/dataset/7a018f22-0e26-4698-ae4c-1b29981803bc/resource/700bd67f-040c-41de-8bf1-8328e5981736/download/2-sichen-gruden-2025.xlsx"
+RAW_DIR = os.path.join("data", "raw")
+DB_DIR = "db"
+DB_PATH = os.path.join(DB_DIR, "lab.db")
 
-def ensure_dir(path: str) -> None:
-    """Create folder if it doesn't exist."""
-    os.makedirs(path, exist_ok=True)
+SHEETS = {
+    "Unemployed ": "unemployed",
+    "Vacancies": "vacancies",
+    "Unemployed by categories": "unemployed_by_categories",
+}
 
-def download_file(url: str, out_path: str) -> None:
-    """Download file from URL to out_path."""
-    print(f"Downloading:\n  {url}\n-> {out_path}")
-    urllib.request.urlretrieve(url, out_path)
-    print("DONE")
+def find_latest_file(folder: str):
+    files = glob.glob(os.path.join(folder, "*"))
+    if not files:
+        raise FileNotFoundError(f"No files found in {folder}. Put your dataset into {folder}.")
+    return max(files, key=os.path.getmtime)
+
+def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df.columns = (
+        df.columns.astype(str)
+        .str.replace("\n", " ", regex=False)
+        .str.replace("\r", " ", regex=False)
+        .str.strip()
+    )
+
+    first_col = df.columns[0]
+    df = df.dropna(how="all").copy()
+
+    df = df[
+        ~df[first_col].astype(str).str.strip().str.lower().isin(["регіон", "period"])
+    ].copy()
+
+    return df
 
 def main():
-    raw_dir = os.path.join("data", "raw")
-    ensure_dir(raw_dir)
+    os.makedirs(DB_DIR, exist_ok=True)
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    latest = find_latest_file(RAW_DIR)
+    print(f"Using source file: {latest}")
 
-    ext = ".data"
-    for candidate in [".csv", ".xlsx", ".xls", ".json"]:
-        if candidate in DATA_URL.lower():
-            ext = candidate
-            break
+    conn = sqlite3.connect(DB_PATH)
 
-    out_file = os.path.join(raw_dir, f"dataset_{ts}{ext}")
+    for sheet_name, table_name in SHEETS.items():
+        df = pd.read_excel(latest, sheet_name=sheet_name, header=0)
+        df = clean_dataframe(df)
+        df.to_sql(table_name, conn, if_exists="replace", index=False)
+        print(f"Loaded sheet '{sheet_name}' into table '{table_name}' ({len(df)} rows)")
 
-    if DATA_URL == "PASTE_DIRECT_RESOURCE_URL_HERE":
-        print("ERROR: You must paste the direct resource URL into DATA_URL.")
-        sys.exit(1)
-
-    download_file(DATA_URL, out_file)
-
+    conn.close()
+    print(f"SQLite database created: {DB_PATH}")
+    print("DONE")
 
 if __name__ == "__main__":
     main()

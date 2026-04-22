@@ -30,7 +30,9 @@ def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
         .str.strip()
     )
     if "region" in df.columns:
-        df = df[df["region"].astype(str).str.lower() != "period"].copy()
+        df = df[
+            ~df["region"].astype(str).str.strip().str.lower().isin(["period", "регіон"])
+        ].copy()
     df = df.dropna(how="all").copy()
 
     for col in df.columns:
