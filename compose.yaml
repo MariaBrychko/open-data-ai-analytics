@@ -1,0 +1,58 @@
+services:
+  data_load:
+    build:
+      context: .
+      dockerfile: src/data_load/Dockerfile
+    container_name: data_load_service
+    volumes:
+      - ./data:/app/data
+      - ./db:/app/db
+
+  data_quality_analysis:
+    build:
+      context: .
+      dockerfile: src/data_quality_analysis/Dockerfile
+    container_name: data_quality_service
+    depends_on:
+      - data_load
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+
+  data_research:
+    build:
+      context: .
+      dockerfile: src/data_research/Dockerfile
+    container_name: data_research_service
+    depends_on:
+      - data_load
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+
+  visualization:
+    build:
+      context: .
+      dockerfile: src/visualization/Dockerfile
+    container_name: visualization_service
+    depends_on:
+      - data_load
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: web_service
+    depends_on:
+      - data_load
+      - data_quality_analysis
+      - data_research
+      - visualization
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./db:/app/db
+      - ./reports:/app/reports

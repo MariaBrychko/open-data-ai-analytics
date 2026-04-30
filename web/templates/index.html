@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Data AI Analytics</title>
+    <style>
+        :root {
+            --bg: #f4f9ff;
+            --bg-soft: #edf6ff;
+            --card: #ffffff;
+            --primary: #1e88e5;
+            --primary-dark: #1565c0;
+            --primary-light: #64b5f6;
+            --text: #1f2d3d;
+            --muted: #5f7187;
+            --border: #d9e8f7;
+            --shadow: 0 10px 30px rgba(30, 136, 229, 0.10);
+            --radius: 18px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #f7fbff 0%, #eef6ff 100%);
+            color: var(--text);
+        }
+
+        .page {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 55%, #90caf9 100%);
+            color: white;
+            border-radius: 24px;
+            padding: 36px 40px;
+            box-shadow: 0 16px 40px rgba(30, 136, 229, 0.20);
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            margin: 0 0 10px 0;
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .hero p {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.6;
+            max-width: 900px;
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 22px 0 0 0;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: white;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.26);
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-size: 14px;
+            transition: 0.2s ease;
+        }
+
+        .nav a:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .summary-card .label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .summary-card .value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .section h2 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--primary-dark);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: var(--bg-soft);
+            color: var(--primary-dark);
+            font-size: 13px;
+            border: 1px solid #cbe2fb;
+            font-weight: 600;
+        }
+
+        .subsection-title {
+            margin: 22px 0 12px 0;
+            font-size: 18px;
+            color: #204d74;
+        }
+
+        .report-box {
+            background: #f8fbff;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px;
+            overflow-x: auto;
+        }
+
+        .report-box pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: Consolas, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #24384d;
+        }
+
+        .table-card {
+            background: #fcfeff;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            overflow-x: auto;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 900px;
+            font-size: 13px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th {
+            background: linear-gradient(180deg, #e3f2fd 0%, #d2ebff 100%);
+            color: #19456b;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        th, td {
+            border: 1px solid #dbeaf7;
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) td {
+            background: #f8fcff;
+        }
+
+        tr:hover td {
+            background: #eef7ff;
+        }
+
+        .figures-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 20px;
+        }
+
+        .figure-card {
+            background: #fbfdff;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 8px 22px rgba(21, 101, 192, 0.08);
+        }
+
+        .figure-card h3 {
+            margin: 0 0 14px 0;
+            font-size: 18px;
+            color: #1e4f79;
+        }
+
+        .figure-card img {
+            width: 100%;
+            border-radius: 14px;
+            border: 1px solid #d9e8f7;
+            background: white;
+            display: block;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+            padding: 12px 0 28px 0;
+        }
+
+        @media (max-width: 1100px) {
+            .summary-grid {
+                grid-template-columns: repeat(2, minmax(180px, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .page {
+                padding: 14px;
+            }
+
+            .hero {
+                padding: 24px 20px;
+            }
+
+            .hero h1 {
+                font-size: 28px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section {
+                padding: 18px;
+            }
+
+            .figures-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="hero">
+            <h1>Open Data AI Analytics</h1>
+            <p>
+                Веб-інтерфейс для демонстрації результатів лабораторної роботи з аналізу відкритих даних.
+                На сторінці відображаються завантажені дані з SQLite, результати перевірки якості,
+                результати дослідження та побудовані візуалізації.
+            </p>
+
+            <div class="nav">
+                <a href="#data">Завантажені дані</a>
+                <a href="#quality">Перевірка якості</a>
+                <a href="#research">Дослідження</a>
+                <a href="#visuals">Візуалізації</a>
+            </div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="label">Джерело</div>
+                <div class="value">SQLite + Reports</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Модулі</div>
+                <div class="value">5 сервісів</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Тип аналізу</div>
+                <div class="value">EDA + Quality + Charts</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Веб-інтерфейс</div>
+                <div class="value">Flask</div>
+            </div>
+        </div>
+
+        <section class="section" id="data">
+            <div class="section-header">
+                <h2>1. Завантажені дані з SQLite</h2>
+                <span class="badge">Попередній перегляд даних</span>
+            </div>
+
+            {% if data_preview %}
+                <div class="table-card">
+                    {{ data_preview|safe }}
+                </div>
+            {% else %}
+                <div class="report-box">
+                    <pre>Попередній перегляд даних недоступний.</pre>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="section" id="quality">
+            <div class="section-header">
+                <h2>2. Результати перевірки якості</h2>
+                <span class="badge">Data Quality</span>
+            </div>
+
+            <div class="report-box">
+                <pre>{{ quality_report }}</pre>
+            </div>
+
+            {% if missing_preview %}
+                <h3 class="subsection-title">Попередній перегляд missing_values.csv</h3>
+                <div class="table-card">
+                    {{ missing_preview|safe }}
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="section" id="research">
+            <div class="section-header">
+                <h2>3. Результати дослідження</h2>
+                <span class="badge">EDA та модель</span>
+            </div>
+
+            <div class="report-box">
+                <pre>{{ model_report }}</pre>
+            </div>
+
+            {% if eda_preview %}
+                <h3 class="subsection-title">EDA summary</h3>
+                <div class="table-card">
+                    {{ eda_preview|safe }}
+                </div>
+            {% endif %}
+
+            {% if corr_preview %}
+                <h3 class="subsection-title">Correlation preview</h3>
+                <div class="table-card">
+                    {{ corr_preview|safe }}
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="section" id="visuals">
+            <div class="section-header">
+                <h2>4. Візуалізації</h2>
+                <span class="badge">Графіки та діаграми</span>
+            </div>
+
+            {% if figures %}
+                <div class="figures-grid">
+                    {% for fig in figures %}
+                        <div class="figure-card">
+                            <h3>{{ fig.replace('.png', '').replace('_', ' ').title() }}</h3>
+                            <img src="{{ url_for('get_figure', filename=fig) }}" alt="{{ fig }}">
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="report-box">
+                    <pre>Графіки ще не згенеровані.</pre>
+                </div>
+            {% endif %}
+        </section>
+
+        <div class="footer">
+            Open Data AI Analytics • Лабораторна робота з контейнеризації та веб-візуалізації результатів
+        </div>
+    </div>
+</body>
+</html>

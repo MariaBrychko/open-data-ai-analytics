@@ -1,7 +1,7 @@
 # Data Quality Report
 
-- Source file: `data\raw\dataset_20260226_020246.xlsx`
-- Rows: 27
+- Source file: `data/raw/dataset_20260226_020246.xlsx`
+- Rows: 26
 - Columns: 22
 - Total missing values: 0
 - Duplicate rows: 0
