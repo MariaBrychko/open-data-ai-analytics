@@ -220,3 +220,114 @@ false
 ```
 
 This step is important because Azure resources may consume free trial credits while they exist.
+
+## Monitoring with Prometheus and Grafana
+
+The project includes a monitoring stack for the Azure Docker deployment.
+
+The monitoring stack contains:
+
+- Prometheus
+- Grafana
+- Node Exporter
+- cAdvisor
+
+Prometheus collects metrics from:
+
+- Prometheus itself
+- Azure Linux VM through Node Exporter
+- Docker containers through cAdvisor
+- Flask web application through the `/metrics` endpoint
+
+The monitoring configuration is located in:
+
+```text
+monitoring/
+├── prometheus/
+│   └── prometheus.yml
+└── docker-compose.monitoring.yml
+```
+
+### Open ports
+
+The following ports are used:
+
+- `8000` — web application
+- `3000` — Grafana
+- `9090` — Prometheus
+- `22` — SSH access
+
+### Start monitoring on the VM
+
+Connect to the Azure VM:
+
+```bash
+ssh azureuser@PUBLIC_IP
+```
+
+Go to the project directory:
+
+```bash
+cd /opt/open-data-ai-analytics/monitoring
+```
+
+Start the monitoring services:
+
+```bash
+sudo docker compose -f docker-compose.monitoring.yml up -d
+```
+
+Check all containers:
+
+```bash
+sudo docker ps -a
+```
+
+### Open services
+
+Web application:
+
+```text
+http://PUBLIC_IP:8000
+```
+
+Prometheus:
+
+```text
+http://PUBLIC_IP:9090
+```
+
+Prometheus targets:
+
+```text
+http://PUBLIC_IP:9090/targets
+```
+
+Grafana:
+
+```text
+http://PUBLIC_IP:3000
+```
+
+Default Grafana login:
+
+```text
+admin
+admin
+```
+
+In Grafana, Prometheus is added as a data source with the following internal URL:
+
+```text
+http://prometheus:9090
+```
+
+### Dashboard panels
+
+The Grafana dashboard contains panels for:
+
+- VM CPU usage
+- VM memory usage
+- Docker containers state
+- web container resource usage
+- Flask application request metrics

@@ -3,3 +3,4 @@ openpyxl
 matplotlib
 scikit-learn
 Flask
+prometheus-client
