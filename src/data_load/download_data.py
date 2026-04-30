@@ -3,6 +3,7 @@ import glob
 import sqlite3
 import urllib.request
 from datetime import datetime
+
 import pandas as pd
 
 RAW_DIR = os.path.join("data", "raw")
@@ -17,8 +18,10 @@ SHEETS = {
     "Unemployed by categories": "unemployed_by_categories",
 }
 
+
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
+
 
 def find_latest_file(folder: str):
     files = glob.glob(os.path.join(folder, "*"))
@@ -26,16 +29,20 @@ def find_latest_file(folder: str):
         return None
     return max(files, key=os.path.getmtime)
 
+
 def download_file(url: str, out_path: str):
     print(f"Downloading:\n  {url}\n-> {out_path}")
-    req = urllib.request.Request(
-    url,
-    headers={'User-Agent': 'Mozilla/5.0'}
-)
 
-with urllib.request.urlopen(req) as response, open(out_path, 'wb') as out_file:
-    out_file.write(response.read())
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+
+    with urllib.request.urlopen(req) as response, open(out_path, "wb") as out_file:
+        out_file.write(response.read())
+
     print("DONE")
+
 
 def get_or_download_source_file():
     ensure_dir(RAW_DIR)
@@ -57,6 +64,7 @@ def get_or_download_source_file():
     download_file(DATA_URL, out_file)
     return out_file
 
+
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = (
         df.columns.astype(str)
@@ -73,6 +81,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     ].copy()
 
     return df
+
 
 def main():
     ensure_dir(DB_DIR)
@@ -91,6 +100,7 @@ def main():
     conn.close()
     print(f"SQLite database created: {DB_PATH}")
     print("DONE")
+
 
 if __name__ == "__main__":
     main()
