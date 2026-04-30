@@ -28,7 +28,13 @@ def find_latest_file(folder: str):
 
 def download_file(url: str, out_path: str):
     print(f"Downloading:\n  {url}\n-> {out_path}")
-    urllib.request.urlretrieve(url, out_path)
+    req = urllib.request.Request(
+    url,
+    headers={'User-Agent': 'Mozilla/5.0'}
+)
+
+with urllib.request.urlopen(req) as response, open(out_path, 'wb') as out_file:
+    out_file.write(response.read())
     print("DONE")
 
 def get_or_download_source_file():
