@@ -1,0 +1,35 @@
+#cloud-config
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - git
+
+write_files:
+  - path: /usr/local/bin/deploy-open-data-ai-analytics.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      exec > >(tee -a /var/log/open-data-ai-analytics-deploy.log) 2>&1
+      apt-get update
+      install -m 0755 -d /etc/apt/keyrings
+      rm -f /etc/apt/keyrings/docker.gpg
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      . /etc/os-release
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      systemctl enable docker
+      systemctl start docker
+      rm -rf ${app_dir}
+      git clone ${repo_url} ${app_dir}
+      cd ${app_dir}
+      docker compose up --build -d
+      docker compose ps
+      curl -I http://localhost:${web_port} || true
+
+runcmd:
+  - /usr/local/bin/deploy-open-data-ai-analytics.sh
