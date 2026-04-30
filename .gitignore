@@ -11,3 +11,9 @@ __pycache__/
 
 #big/raw data (dont commit)
 data/raw/
+
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
+terraform.tfvars
