@@ -93,7 +93,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
   computer_name       = "${var.project_name}-vm"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  size                = "Standard_B2s"
+  size                = "Standard_B1ms"
   admin_username      = var.admin_username
 
   network_interface_ids = [
