@@ -73,6 +73,8 @@ def index():
     missing_preview = read_csv_preview(os.path.join(REPORTS_DIR, "missing_values.csv"))
     eda_preview = read_csv_preview(os.path.join(REPORTS_DIR, "eda_summary.csv"))
     corr_preview = read_csv_preview(os.path.join(REPORTS_DIR, "correlation.csv"))
+    
+    gitops_message = os.getenv("GITOPS_MESSAGE", "GitOps version 1 - deployed by Argo CD")
 
     figures = []
     if os.path.exists(FIGURES_DIR):
@@ -89,6 +91,7 @@ def index():
         eda_preview=eda_preview,
         corr_preview=corr_preview,
         figures=figures,
+        gitops_message=gitops_message,
     )
 
 

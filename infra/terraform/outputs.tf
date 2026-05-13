@@ -21,3 +21,11 @@ output "prometheus_targets_url" {
 output "ssh_command" {
   value = "ssh ${var.admin_username}@${azurerm_public_ip.public_ip.ip_address}"
 }
+
+output "argocd_url" {
+  value = "https://${azurerm_public_ip.public_ip.ip_address}:8080"
+}
+
+output "gitops_web_url" {
+  value = "http://${azurerm_public_ip.public_ip.ip_address}:30080"
+}
