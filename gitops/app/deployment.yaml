@@ -23,7 +23,7 @@ spec:
             - containerPort: 8000
           env:
             - name: GITOPS_MESSAGE
-              value: "GitOps version 1 - deployed by Argo CD"
+              value: "GitOps version 2 - updated from GitHub"
           readinessProbe:
             httpGet:
               path: /
